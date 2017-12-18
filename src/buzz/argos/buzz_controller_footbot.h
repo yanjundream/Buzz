@@ -6,12 +6,35 @@
 #include <argos3/plugins/robots/generic/control_interface/ci_leds_actuator.h>
 #include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_proximity_sensor.h>
 #include <argos3/plugins/robots/generic/control_interface/ci_colored_blob_omnidirectional_camera_sensor.h>
+#include <algorithm>
 
 using namespace argos;
 
 class CBuzzControllerFootBot : public CBuzzController {
 
 public:
+
+  class CoordinateSystem {
+  public:
+    int m_id_leader;
+    int m_id_ref_robot1;
+    int m_id_ref_robot2;
+    bool m_keep_redrawing = false;
+    int m_id;
+
+    inline CoordinateSystem(int id, int posRobotLeader, int posRobot1, int posRobot2, bool keep_redrawing)
+    {
+      m_id = id;
+      m_id_leader = posRobotLeader;
+      m_id_ref_robot1 = posRobot1;
+      m_id_ref_robot2 = posRobot2;
+      m_keep_redrawing = keep_redrawing;
+    }
+    inline bool operator==(const int& o) const {
+      return this->m_id == o;
+    }
+  };
+
 
    struct SWheelTurningParams {
       /*
@@ -51,6 +74,14 @@ public:
    void SetLEDs(const CColor& c_color);
    void CameraEnable();
    void CameraDisable();
+
+   // for uwb
+   void RemoveCS(int cs_id);
+   std::vector<CoordinateSystem> GetRobotsForCS();
+   std::vector<float> GetBorderRobotIds();
+   std::vector<float> m_border_robot_ids;
+   std::vector<CoordinateSystem> m_cs;
+   void SetArgosCoordinateIDs(int cs_id, int leader_id, int ref1_id, int ref2_id, int redraw);
 
 private:
 

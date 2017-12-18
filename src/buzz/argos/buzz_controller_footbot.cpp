@@ -1,6 +1,7 @@
 #include "buzz_controller_footbot.h"
 #include <argos3/core/utility/logging/argos_log.h>
 
+
 /****************************************/
 /****************************************/
 
@@ -182,6 +183,93 @@ static int BuzzCameraDisable(buzzvm_t vm) {
    reinterpret_cast<CBuzzControllerFootBot*>(buzzvm_stack_at(vm, 1)->u.value)->CameraDisable();
    return buzzvm_ret0(vm);
 }
+
+//for UWB
+
+/****************************************/
+/****************************************/
+
+int BuzzShowCoordinateSystem(buzzvm_t vm) {
+   buzzvm_lnum_assert(vm, 5);
+   buzzvm_lload(vm, 1);
+   buzzvm_lload(vm, 2);
+   buzzvm_lload(vm, 3);
+   buzzvm_lload(vm, 4);
+   buzzvm_lload(vm, 5);
+   buzzvm_type_assert(vm, 5, BUZZTYPE_INT);
+   buzzvm_type_assert(vm, 4, BUZZTYPE_INT);
+   buzzvm_type_assert(vm, 3, BUZZTYPE_INT);
+   buzzvm_type_assert(vm, 2, BUZZTYPE_INT);
+   buzzvm_type_assert(vm, 1, BUZZTYPE_INT);
+   buzzvm_pushs(vm, buzzvm_string_register(vm, "controller", 1));
+   buzzvm_gload(vm);
+   reinterpret_cast<CBuzzControllerFootBot*>(buzzvm_stack_at(vm, 1)->u.value)->SetArgosCoordinateIDs(
+         buzzvm_stack_at(vm, 6)->i.value,
+         buzzvm_stack_at(vm, 5)->i.value,
+         buzzvm_stack_at(vm, 4)->i.value,
+         buzzvm_stack_at(vm, 3)->i.value,
+         buzzvm_stack_at(vm, 2)->i.value);
+   return buzzvm_ret0(vm);
+}
+
+
+int BuzzRemoveCS(buzzvm_t vm) {
+   buzzvm_lnum_assert(vm, 1);
+   buzzvm_lload(vm, 1);
+
+   buzzvm_type_assert(vm, 1, BUZZTYPE_INT);
+   int id = buzzvm_stack_at(vm, 1)->i.value;
+
+   buzzvm_pushs(vm, buzzvm_string_register(vm, "controller", 1));
+   buzzvm_gload(vm);
+
+   reinterpret_cast<CBuzzControllerFootBot*>(buzzvm_stack_at(vm, 1)->u.value)->RemoveCS(id);
+   return buzzvm_ret0(vm);
+}
+
+
+void di_read_elem(const void* key, void* data, void* params) {
+    int16_t k = *(const int16_t*)key;
+    buzzobj_t tData = *reinterpret_cast<buzzobj_t*>(data);
+    std::vector<float>* psParams = reinterpret_cast<std::vector<float>*>(params);
+
+    //int16_t k = *(const int16_t*)key;
+    //float d = *(float*)data;
+    //fprintf(stdout, "[%d] %f\n", k, d);
+
+    switch(tData->o.type) {
+        case BUZZTYPE_INT:
+            psParams->push_back((float)tData->i.value);
+            fprintf(stdout, "[buzz_controller_footbot.cpp] I: %d %d \n", k, tData->i.value);
+            break;
+        case BUZZTYPE_FLOAT:
+            psParams->push_back(tData->f.value);
+            fprintf(stdout, "[buzz_controller_footbot.cpp] F: %d %f \n", k, tData->f.value);
+            break;
+        break;
+        default:
+            fprintf(stdout, "[buzz_controller_footbot.cpp] Currently, only int and float items are supported!\n");
+        return;
+    }
+}
+
+int BuzzShowBorderRobots(buzzvm_t vm) {
+   buzzvm_lnum_assert(vm, 1);
+
+   buzzvm_lload(vm, 1);
+   buzzvm_type_assert(vm, 1, BUZZTYPE_TABLE);
+   buzzobj_t t = buzzvm_stack_at(vm, 1);
+
+   buzzvm_pushs(vm, buzzvm_string_register(vm, "controller", 1));
+   buzzvm_gload(vm);
+
+   std::vector<float> v;
+   buzzdict_foreach(t->t.value, di_read_elem, &v);
+
+   reinterpret_cast<CBuzzControllerFootBot*>(buzzvm_stack_at(vm, 1)->u.value)->m_border_robot_ids = v;
+   return buzzvm_ret0(vm);
+}
+
 
 /****************************************/
 /****************************************/
@@ -379,6 +467,33 @@ void CBuzzControllerFootBot::CameraDisable() {
    m_pcCamera->Disable();
 }
 
+
+// UWB
+std::vector<CBuzzControllerFootBot::CoordinateSystem> CBuzzControllerFootBot::GetRobotsForCS(){
+    return m_cs;
+}
+
+std::vector<float> CBuzzControllerFootBot::GetBorderRobotIds() {
+    return m_border_robot_ids;
+}
+
+void CBuzzControllerFootBot::RemoveCS(int cs_id) {
+    m_cs.erase(std::remove(m_cs.begin(), m_cs.end(), cs_id), m_cs.end());
+}
+
+void CBuzzControllerFootBot::SetArgosCoordinateIDs(int cs_id, int leader_id, int ref1_id, int ref2_id, int redraw) {
+   bool m_redraw = false;
+   if(redraw == 0){
+      m_redraw = false;
+   } else {
+      m_redraw = true;
+   }
+
+   if(std::find(m_cs.begin(), m_cs.end(), cs_id) == m_cs.end()){
+      m_cs.push_back(CBuzzControllerFootBot::CoordinateSystem(cs_id, leader_id, ref1_id, ref2_id, m_redraw));
+   }
+}
+
 /****************************************/
 /****************************************/
 
@@ -420,8 +535,27 @@ buzzvm_state CBuzzControllerFootBot::RegisterFunctions() {
       buzzvm_pushcc(m_tBuzzVM, buzzvm_function_register(m_tBuzzVM, BuzzCameraDisable));
       buzzvm_gstore(m_tBuzzVM);
    }
+
+   //for UWB
+
+     /* DrawCoorinateSystem */
+   buzzvm_pushs(m_tBuzzVM, buzzvm_string_register(m_tBuzzVM, "show_coordinate_system", 1));
+   buzzvm_pushcc(m_tBuzzVM, buzzvm_function_register(m_tBuzzVM, BuzzShowCoordinateSystem));
+   buzzvm_gstore(m_tBuzzVM);
+
+   /* Get border robots */
+   buzzvm_pushs(m_tBuzzVM, buzzvm_string_register(m_tBuzzVM, "show_border_robots", 1));
+   buzzvm_pushcc(m_tBuzzVM, buzzvm_function_register(m_tBuzzVM, BuzzShowBorderRobots));
+   buzzvm_gstore(m_tBuzzVM);
+
+   /* remove CS */
+   buzzvm_pushs(m_tBuzzVM, buzzvm_string_register(m_tBuzzVM, "remove_coordinate_system", 1));
+   buzzvm_pushcc(m_tBuzzVM, buzzvm_function_register(m_tBuzzVM, BuzzRemoveCS));
+   buzzvm_gstore(m_tBuzzVM);
+
    return m_tBuzzVM->state;
 }
+
 
 /****************************************/
 /****************************************/
