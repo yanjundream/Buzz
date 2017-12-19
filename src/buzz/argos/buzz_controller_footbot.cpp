@@ -271,6 +271,23 @@ int BuzzShowBorderRobots(buzzvm_t vm) {
 }
 
 
+// exercise drawtext
+
+int BuzzDrawtext(buzzvm_t vm){
+  buzzvm_lnum_assert(vm, 1);
+  buzzvm_lload(vm, 1);
+  //buzzvm_lload(vm, 2);
+  //buzzvm_type_assert(vm, 2, BUZZTYPE_INT);
+  buzzvm_type_assert(vm, 1, BUZZTYPE_INT);
+  buzzvm_pushs(vm, buzzvm_string_register(vm, "controller", 1));
+  buzzvm_gload(vm);
+  reinterpret_cast<CBuzzControllerFootBot*>(buzzvm_stack_at(vm, 1)->u.value)->SetArgosTextRobot(
+      buzzvm_stack_at(vm, 2)->i.value);
+
+  return buzzvm_ret0(vm);
+
+}
+
 /****************************************/
 /****************************************/
 
@@ -494,6 +511,15 @@ void CBuzzControllerFootBot::SetArgosCoordinateIDs(int cs_id, int leader_id, int
    }
 }
 
+void CBuzzControllerFootBot::SetArgosTextRobot(int text_id ){
+
+  circleRobotID = text_id;
+  fprintf(stdout, "[%d]\n", text_id);
+/*    if(std::find(m_cs.begin(), m_cs.end(), cs_id) == m_cs.end()){
+      m_cs.push_back(CBuzzControllerFootBot::CoordinateSystem(cs_id, leader_id, ref1_id, ref2_id, m_redraw));
+    }*/
+}
+
 /****************************************/
 /****************************************/
 
@@ -551,6 +577,11 @@ buzzvm_state CBuzzControllerFootBot::RegisterFunctions() {
    /* remove CS */
    buzzvm_pushs(m_tBuzzVM, buzzvm_string_register(m_tBuzzVM, "remove_coordinate_system", 1));
    buzzvm_pushcc(m_tBuzzVM, buzzvm_function_register(m_tBuzzVM, BuzzRemoveCS));
+   buzzvm_gstore(m_tBuzzVM);
+
+   /* draw text to exercist */
+   buzzvm_pushs(m_tBuzzVM, buzzvm_string_register(m_tBuzzVM, "drawtext", 1));
+   buzzvm_pushcc(m_tBuzzVM, buzzvm_function_register(m_tBuzzVM, BuzzDrawtext));
    buzzvm_gstore(m_tBuzzVM);
 
    return m_tBuzzVM->state;

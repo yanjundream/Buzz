@@ -22,6 +22,7 @@ public:
     bool m_keep_redrawing = false;
     int m_id;
 
+
     inline CoordinateSystem(int id, int posRobotLeader, int posRobot1, int posRobot2, bool keep_redrawing)
     {
       m_id = id;
@@ -82,6 +83,10 @@ public:
    std::vector<float> m_border_robot_ids;
    std::vector<CoordinateSystem> m_cs;
    void SetArgosCoordinateIDs(int cs_id, int leader_id, int ref1_id, int ref2_id, int redraw);
+   void SetArgosTextRobot(int text_id );
+   // for exercise
+   int circleRobotID;
+
 
 private:
 
